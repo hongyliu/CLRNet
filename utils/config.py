@@ -100,6 +100,7 @@ class Config:
             with tempfile.TemporaryDirectory() as temp_config_dir:
                 temp_config_file = tempfile.NamedTemporaryFile(
                     dir=temp_config_dir, suffix='.py')
+                temp_config_file.close()  # 添加这行代码
                 temp_config_name = osp.basename(temp_config_file.name)
                 shutil.copyfile(filename,
                                 osp.join(temp_config_dir, temp_config_name))

@@ -1,1 +1,15 @@
+addict==2.4.0
+imgaug==0.4.0
+mmcv==1.5.0
+numpy==1.21.6
+opencv_python==4.5.5.64
+pathspec==0.9.0
+Pillow==9.1.0
+pytorch_warmup==0.1.0
+scikit_learn==1.0.2
+scipy==1.7.3
+six==1.16.0
 torch==1.11.0
+torchvision==0.12.0
+tqdm==4.64.0
+yapf==0.32.0

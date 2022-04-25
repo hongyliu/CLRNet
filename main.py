@@ -1,12 +1,33 @@
 import torch
 import os
 import argparse
+import torch.backends.cudnn as cudnn
+from utils import Config
+from engine.runner import Runner
 
 
 def main():
     args = parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(gpu) for gpu in args.gpus)
+    cfg = Config.fromfile(args.config)
+    cfg.gpus = len(args.gpus)
 
+    cfg.load_from = args.load_from
+    cfg.finetune_from = args.finetune_from
+    cfg.view = args.view
+    cfg.seed = args.seed
+
+    cfg.work_dirs = args.work_dirs + '/' + cfg.dataset.train.type
+
+    cudnn.benchmark = True
+    # cudnn.fastest = True
+
+    runner = Runner(cfg)
+
+    if args.validate:
+        runner.validate()
+    else:
+        runner.train()
 
 
 
