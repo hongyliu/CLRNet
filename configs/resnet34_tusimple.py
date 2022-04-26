@@ -25,7 +25,13 @@ neck=dict(
     #trans_idx=-1,
 )
 
-heads=dict()
+heads=dict(
+    type='ROIGather',
+    in_channels=[64, 64, 64],
+    feature_channel=64,
+    sample_points=36,
+    resize_shape=(10, 25)
+)
 
 loss_weights=dict(
         hm_weight=1,

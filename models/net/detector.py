@@ -13,8 +13,7 @@ class Detector(nn.Module):
         self.backbone = build_backbones(cfg)
         self.aggregator = build_aggregator(cfg) if cfg.aggregator else None
         self.neck = build_necks(cfg) if cfg.neck else None
-        # TODO remove `if cfg.heads else None` because net must have a head
-        self.heads = build_heads(cfg) if cfg.heads else None
+        self.heads = build_heads(cfg)
 
     def forward(self, batch):
         output = {}

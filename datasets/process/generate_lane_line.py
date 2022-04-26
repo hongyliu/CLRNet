@@ -1,8 +1,11 @@
+import logging
+import math
 import os.path as osp
 import numpy as np
 import cv2
 import os
 import json
+import logging
 import imgaug.augmenters as iaa
 from imgaug.augmenters import Resize
 from imgaug.augmentables.lines import LineString, LineStringsOnImage
@@ -21,6 +24,7 @@ class GenerateLaneLine(object):
         self.strip_size = self.img_h / self.n_strips
         self.max_lanes = cfg.max_lanes
         self.offsets_ys = np.arange(self.img_h, -1, -self.strip_size)
+        self.logger = logging.getLogger(__name__)
         transformations = iaa.Sequential([Resize({'height': self.img_h, 'width': self.img_w})])
         if transforms is not None:
             transforms = [getattr(iaa, aug['name'])(**aug['parameters'])
@@ -77,7 +81,8 @@ class GenerateLaneLine(object):
 
         return filtered_lane
 
-    def transform_annotation(self, anno, img_wh=None):
+    # generate lane prior from ground truth points of lane
+    def generate_lane_prior(self, anno, img_wh=None):
         img_w, img_h = self.img_w, self.img_h
 
         old_lanes = anno['lanes']
@@ -92,8 +97,8 @@ class GenerateLaneLine(object):
         old_lanes = [[[x * self.img_w / float(img_w), y * self.img_h / float(img_h)] for x, y in lane]
                      for lane in old_lanes]
         # create tranformed annotations
-        lanes = np.ones((self.max_lanes, 2 + 1 + 1 + 1 + self.n_offsets),
-                        dtype=np.float32) * -1e5  # 2 scores, 1 start_y, 1 start_x, 1 length, S+1 coordinates
+        lanes = np.ones((self.max_lanes, 2 + 1 + 1 + 1 + 1 + self.n_offsets),
+                        dtype=np.float32) * -1e5  # 2 scores, 1 length, 1 start_y, 1 start_x, 1 theta, S+1 coordinates
         # lanes are invalid by default
         lanes[:, 0] = 1
         lanes[:, 1] = 0
@@ -104,15 +109,18 @@ class GenerateLaneLine(object):
                 continue
             if len(xs_inside_image) == 0:
                 continue
+            delta_y = self.img_h / self.n_strips
+            theta = [math.atan(delta_y / (xs_inside_image[i + 1] - xs_inside_image[i])) for i in range(len(xs_inside_image) - 1)]
             all_xs = np.hstack((xs_outside_image, xs_inside_image))
             lanes[lane_idx, 0] = 0
             lanes[lane_idx, 1] = 1
-            lanes[lane_idx, 2] = len(xs_outside_image) / self.n_strips
+            lanes[lane_idx, 2] = len(xs_inside_image)
             lanes[lane_idx, 3] = xs_inside_image[0]
-            lanes[lane_idx, 4] = len(xs_inside_image)
-            lanes[lane_idx, 5:5 + len(all_xs)] = all_xs
+            lanes[lane_idx, 4] = len(xs_outside_image) / self.n_strips
+            lanes[lane_idx, 5] = sum(theta) / len(theta)
+            lanes[lane_idx, 6:6 + len(all_xs)] = all_xs
 
-        new_anno = {'label': lanes, 'old_anno': anno}
+        new_anno = {'lane_prior': lanes, 'old_anno': anno}
         return new_anno
 
     def linestrings_to_lanes(self, lines):
@@ -132,7 +140,7 @@ class GenerateLaneLine(object):
             line_strings.clip_out_of_image_()
             new_anno = {'lanes': self.linestrings_to_lanes(line_strings)}
             try:
-                label = self.transform_annotation(new_anno, img_wh=(self.img_w, self.img_h))['label']
+                label = self.generate_lane_prior(new_anno, img_wh=(self.img_w, self.img_h))['lane_prior']
                 break
             except:
                 if (i + 1) == 30:
@@ -140,6 +148,6 @@ class GenerateLaneLine(object):
                     exit()
 
         sample['img'] = img / 255.
-        sample['lane_line'] = label
+        sample['lane_prior'] = label
 
         return sample

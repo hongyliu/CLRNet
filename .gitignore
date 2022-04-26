@@ -1,6 +1,6 @@
 # Pycharm
 .idea/
-.work_dirs/
+work_dirs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
