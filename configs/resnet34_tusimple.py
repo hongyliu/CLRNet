@@ -11,9 +11,6 @@ backbone = dict(
     in_channels=[64, 128, 256, 512]
 )
 
-featuremap_out_channel = 128
-featuremap_out_stride = 8
-sample_y = range(589, 230, -20)
 
 aggregator = dict()
 
@@ -22,12 +19,12 @@ neck=dict(
     in_channels=[128, 256, 512],
     out_channels=64,
     num_outs=3,
-    #trans_idx=-1,
 )
 
 heads=dict(
     type='ROIGather',
     in_channels=[64, 64, 64],
+    feature_size=[(10, 25), (20, 50), (40, 100)],
     feature_channel=64,
     sample_points=36,
     resize_shape=(10, 25)
@@ -42,6 +39,7 @@ loss_weights=dict(
 
 
 batch_size = 2
+prior_elements = 78
 num_points = 72
 num_sampled_points = 36
 max_lanes = 5
@@ -70,8 +68,8 @@ img_norm = dict(
 cut_height = 0 
 ori_img_h = 720
 ori_img_w = 1280
-img_w=800
-img_h=320
+img_w = 800
+img_h = 320
 
 
 train_process = [
@@ -81,7 +79,7 @@ train_process = [
                 name = 'Affine',
                 parameters = dict(
                     translate_px = dict(
-                        x = (-25, 25),
+                        x=(-25, 25),
                         y = (-10, 10)
                     ),
                     rotate=(-6, 6),
@@ -89,15 +87,15 @@ train_process = [
                 )
             ),
             dict(
-                name = 'HorizontalFlip',
-                parameters = dict(
+                name='HorizontalFlip',
+                parameters=dict(
                     p=0.5
                 ),
             )
         ),
         wh = (img_w, img_h),
     ),
-    dict(type='ToTensor', keys=['img', 'lane_line']),
+    dict(type='ToTensor', keys=['img', 'lane_prior']),
 ]
 
 val_process = [

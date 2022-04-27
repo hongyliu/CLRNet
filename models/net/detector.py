@@ -24,7 +24,7 @@ class Detector(nn.Module):
 
         if self.neck:
             fea = self.neck(fea[1:])
-
+        fea.reverse()
         if self.training:
             out = self.heads(fea, batch=batch)
             output.update(self.heads.loss(out, batch))
