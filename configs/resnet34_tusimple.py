@@ -30,12 +30,16 @@ heads=dict(
     resize_shape=(10, 25)
 )
 
+cost_weight = dict(
+    cls_weight=1,
+    sim_weight=3
+)
+
 loss_weights=dict(
-        hm_weight=1,
-        kps_weight=0.4,
-        row_weight=1.,
-        range_weight=1.,
-    )
+    cls_weight=1,
+    xytl_weight=1.,
+    liou_weight=1.
+)
 
 
 batch_size = 2

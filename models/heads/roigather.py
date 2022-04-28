@@ -53,7 +53,8 @@ class ROIGatherBlock(nn.Module):
                  resize_shape,
                  prior_elements,
                  max_lanes,
-                 img_h):
+                 img_h,
+                 batch_size):
         super(ROIGatherBlock, self).__init__()
         self.in_channel = in_channel
         self.points = points
@@ -66,6 +67,7 @@ class ROIGatherBlock(nn.Module):
         self.prior_elements = prior_elements
         self.max_lanes = max_lanes
         self.img_h = img_h
+        self.batch_size = batch_size
         self.resize_flatten = nn.Sequential(
             nn.AdaptiveAvgPool2d((10, 25)),
             nn.Flatten(start_dim=-2, end_dim=-1))
@@ -90,7 +92,8 @@ class ROIGatherBlock(nn.Module):
             .reshape(-1, self.max_lanes, 1, self.in_channel)
         w = self.softmax(torch.matmul(x_p, x_f) / math.sqrt(self.in_channel))
         g = torch.matmul(w, x_f.permute(0, 1, 3, 2))
-        p = self.fc((g + x_p).reshape(-1, self.in_channel)).reshape(-1, self.max_lanes, self.prior_elements)
+        p = g.reshape(self.batch_size, -1, 1) + prior_input
+        # p = self.fc((g + x_p).reshape(-1, self.in_channel)).reshape(-1, self.max_lanes, self.prior_elements)
         return p
 
     def init_weights(self, m):
@@ -124,7 +127,8 @@ class ROIGather(nn.Module):
                                               self.resize_shape,
                                               self.cfg.prior_elements,
                                               self.cfg.max_lanes,
-                                              self.cfg.img_h)
+                                              self.cfg.img_h,
+                                              self.cfg.batch_size)
             self.roi_layers.append(roi_gather_block)
 
     def forward(self, feature_list, batch):
