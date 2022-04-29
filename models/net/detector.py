@@ -26,8 +26,8 @@ class Detector(nn.Module):
             fea = self.neck(fea[1:])
         fea.reverse()
         if self.training:
-            out = self.heads(fea, batch=batch)
-            output.update(self.heads.loss(out, batch))
+            out = self.heads(fea)
+            output.update(self.heads.loss(out[-1], batch['lane_prior']))
         else:
             output = self.heads(fea)
             output = self.heads.get_lanes(output)

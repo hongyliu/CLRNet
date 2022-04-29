@@ -30,15 +30,15 @@ heads=dict(
     resize_shape=(10, 25)
 )
 
-cost_weight = dict(
-    cls_weight=1,
-    sim_weight=3
-)
 
-loss_weights=dict(
-    cls_weight=1,
-    xytl_weight=1.,
-    liou_weight=1.
+loss=dict(
+    gamma=5,
+    radius=15,
+    w_cls=1,
+    w_sim=3,
+    l_w_cls=1,
+    l_w_xytl=1.,
+    l_w_liou=1.
 )
 
 

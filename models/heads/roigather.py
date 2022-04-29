@@ -2,18 +2,20 @@ import math
 
 import torch
 from ..registry import HEADS
-from torch import nn, Tensor
+from torch import nn, Tensor, tensor
+from models.loss import CLRNet_Loss
+from mmcv.cnn import ConvModule
 
 
-def generate_uniform_prior(batch, lanes, prior_elements, points, img_w, start=0):
-    prior = torch.rand(batch, lanes, prior_elements)
+def generate_uniform_prior(batch, channels, prior_elements, points, img_w, start=0):
+    prior = torch.rand(batch, channels, prior_elements)
     prior = (img_w - start) * prior + start
     prior[:, :, 0], prior[:, :, 1], prior[:, :, 2], prior[:, :, 5] = 1, 0, points, 0
     return prior
 
 
 def prior_add_y(prior: Tensor, points, img_h):
-    prior_y = Tensor([img_h - 1 - img_h / (points - 1) * i for i in range(points)]).resize(1, 1, points)
+    prior_y = tensor([img_h - 1 - img_h / (points - 1) * i for i in range(points)], requires_grad=True).resize(1, 1, points)
     prior_y = torch.cat((prior_y, prior_y))
     prior = torch.hstack((prior, prior_y))
     return prior
@@ -76,23 +78,26 @@ class ROIGatherBlock(nn.Module):
             nn.Flatten(),
             nn.Linear(in_channel * 32, in_channel)
         )
+        self.con_1x1 = ConvModule(in_channel * in_channel, in_channel, 1)
         self.softmax = nn.Softmax(dim=-1)
-        self.fc = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(in_channel, self.prior_elements))
+        # self.fc = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.Linear(in_channel, self.prior_elements))
         self.conv_fc.apply(self.init_weights)
-        self.fc.apply(self.init_weights)
+        # self.fc.apply(self.init_weights)
 
     def forward(self, feature_input, prior_input):
         prior = prior_add_y(prior_input[:, :, 6:], self.points, self.img_h)
         roi = lane_roi_align(feature_input, prior, self.points, self.sample_points, self.feature_h,
                              self.feature_w, self.img_h)
-        x_f = torch.unsqueeze(self.resize_flatten(feature_input), 1).repeat(1, self.max_lanes, 1, 1)
+        x_f = torch.unsqueeze(self.resize_flatten(feature_input), 1)#.repeat(1, self.max_lanes, 1, 1)
         x_p = self.conv_fc(roi.reshape(-1, self.in_channel, self.sample_points))\
-            .reshape(-1, self.max_lanes, 1, self.in_channel)
+            .reshape(self.batch_size, -1, 1, self.in_channel)
         w = self.softmax(torch.matmul(x_p, x_f) / math.sqrt(self.in_channel))
         g = torch.matmul(w, x_f.permute(0, 1, 3, 2))
-        p = g.reshape(self.batch_size, -1, 1) + prior_input
+        g_reshape = self.con_1x1(g.reshape(self.batch_size, -1, 1, 1))
+
+        p = g_reshape.squeeze(3) + prior_input
         # p = self.fc((g + x_p).reshape(-1, self.in_channel)).reshape(-1, self.max_lanes, self.prior_elements)
         return p
 
@@ -119,6 +124,7 @@ class ROIGather(nn.Module):
         self.resize_shape = resize_shape
         self.cfg = cfg
         self.roi_layers = nn.ModuleList()
+        self.clrnet_loss = CLRNet_Loss(self.cfg.num_points, **self.cfg.loss)
         for i, in_channel in enumerate(in_channels):
             roi_gather_block = ROIGatherBlock(in_channel,
                                               self.cfg.num_points,
@@ -131,7 +137,17 @@ class ROIGather(nn.Module):
                                               self.cfg.batch_size)
             self.roi_layers.append(roi_gather_block)
 
-    def forward(self, feature_list, batch):
+    def forward(self, feature_list):
+        generate_prior = generate_uniform_prior(self.cfg.batch_size, self.feature_channel, self.cfg.prior_elements,
+                                                self.cfg.num_points, self.cfg.img_w)
+        prior_output = []
+        for i, roi_gather_block in enumerate(self.roi_layers):
+            prior_input = generate_prior if i == 0 else prior_output[-1]
+            prior_refined = roi_gather_block(feature_list[i], prior_input)
+            prior_output.append(prior_refined)
+        return prior_output
+
+    def forward_train(self, feature_list):
         generate_prior = generate_uniform_prior(self.cfg.batch_size, self.cfg.max_lanes, self.cfg.prior_elements,
                                                 self.cfg.num_points, self.cfg.img_w)
         prior_output = []
@@ -141,14 +157,5 @@ class ROIGather(nn.Module):
             prior_output.append(prior_refined)
         return prior_output
 
-
-
-# if __name__ == '__main__':
-#     prior = generate_uniform_prior(2, 5, 78, 72, 800)
-#     # prior = prior_add_y(prior[:, :, 6:], 72, 320)
-#     feature = torch.randn(2, 64, 40, 100)
-#     # roi = lane_roi_align(feature, prior, 72, 36, 40, 100, 320)
-#
-#     block = ROIGatherBlock(64, 72, 36, (40, 100), (10, 25), 78, 5, 320)
-#     data = block(feature, prior)
-#     print(data)
+    def loss(self, output, batch):
+        return self.clrnet_loss(output, batch)

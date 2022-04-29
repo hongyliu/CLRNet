@@ -73,7 +73,7 @@ class Runner(object):
                 self.warmup_scheduler.dampen()
             batch_time = time.time() - end
             end = time.time()
-            self.recorder.update_loss_stats(output['loss_stats'])
+            self.recorder.update_loss_stats(output['loss_states'])
             self.recorder.batch_time.update(batch_time)
             self.recorder.data_time.update(date_time)
 
