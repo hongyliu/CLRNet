@@ -3,8 +3,10 @@ import math
 import torch
 from ..registry import HEADS
 from torch import nn, Tensor, tensor
-from models.loss import CLRNet_Loss
+from models.loss import CLRNet_Loss, LIoU_Loss
 from mmcv.cnn import ConvModule
+import numpy as np
+from models.core.lane import Lane
 
 
 def generate_uniform_prior(batch, channels, prior_elements, points, img_w, start=0):
@@ -115,6 +117,9 @@ class ROIGather(nn.Module):
                  feature_channel,
                  sample_points,
                  resize_shape,
+                 score_threshold,
+                 nms_threshold,
+                 radius,
                  cfg=None):
         super(ROIGather, self).__init__()
         self.in_channels = in_channels
@@ -122,6 +127,9 @@ class ROIGather(nn.Module):
         self.feature_channel = feature_channel
         self.sample_points = sample_points
         self.resize_shape = resize_shape
+        self.score_threshold = score_threshold
+        self.nms_threshold = nms_threshold
+        self.radius = radius
         self.cfg = cfg
         self.roi_layers = nn.ModuleList()
         self.clrnet_loss = CLRNet_Loss(self.cfg.num_points, **self.cfg.loss)
@@ -159,3 +167,43 @@ class ROIGather(nn.Module):
 
     def loss(self, output, batch):
         return self.clrnet_loss(output, batch)
+
+    def nms(self, predict, scores, threshold=0.5):
+        _, order = scores.sort(0, descending=True)    # 降序排列
+        liou = LIoU_Loss(self.radius)
+        keep = []
+        while order.numel() > 0:       # torch.numel()返回张量元素个数
+            if order.numel() == 1:     # 保留框只剩一个
+                i = order.item()
+                keep.append(i)
+                break
+            else:
+                i = order[0].item()    # 保留scores最大的那个框box[i]
+                keep.append(i)
+
+            iou = liou(predict[order[1:], :].unsqueeze(0), predict[[i], :].unsqueeze(0))
+
+            idx = (iou <= threshold).nonzero().squeeze() # 注意此时idx为[N-1,] 而order为[N,]
+            if idx.numel() == 0:
+                break
+            order = order[idx+1]  # 修补索引之间的差值
+        return torch.LongTensor(keep)   # Pytorch的索引值为LongTensor
+
+    def get_lanes(self, out):
+        ret = []
+        for predict in out:
+            lanes = []
+            predict_filter = predict[predict[:, 0] > self.score_threshold, :]
+            idx = self.nms(predict_filter[:, 6:], predict_filter[:, 0], self.nms_threshold)
+            for lane in predict_filter[idx]:
+                coord = []
+                prior_y = tensor([self.img_h - 1 - self.img_h / (self.num_points - 1) * i for i in range(self.num_points)])
+                start_idx = torch.argmin(torch.abs(prior_y - lane[4]))
+                for i in range(start_idx.int(), start_idx.int() + lane[2].int()):
+                    coord.append([lane[6:][i], prior_y[i]])
+                coord = np.array(coord)
+                coord[:, 0] /= self.cfg.img_w
+                coord[:, 1] /= self.cfg.img_h
+                lanes.append(Lane(coord))
+            ret.append(lanes)
+        return ret

@@ -27,7 +27,10 @@ heads=dict(
     feature_size=[(10, 25), (20, 50), (40, 100)],
     feature_channel=64,
     sample_points=36,
-    resize_shape=(10, 25)
+    resize_shape=(10, 25),
+    score_threshold=0.7,
+    nms_threshold=0.5,
+    radius=15
 )
 
 
@@ -74,6 +77,7 @@ ori_img_h = 720
 ori_img_w = 1280
 img_w = 800
 img_h = 320
+sample_y = range(710, 150, -10)
 
 
 train_process = [

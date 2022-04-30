@@ -29,7 +29,7 @@ class Detector(nn.Module):
             out = self.heads(fea)
             output.update(self.heads.loss(out[-1], batch['lane_prior']))
         else:
-            output = self.heads(fea)
-            output = self.heads.get_lanes(output)
+            out = self.heads(fea)
+            output = self.heads.get_lanes(out[-1])
 
         return output
