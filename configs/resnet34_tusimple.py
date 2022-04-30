@@ -45,7 +45,7 @@ loss=dict(
 )
 
 
-batch_size = 2
+batch_size = 16
 prior_elements = 78
 num_points = 72
 num_sampled_points = 36
@@ -138,6 +138,6 @@ dataset = dict(
 )
 
 
-workers = 0
+workers = 8
 log_interval = 1000
 seed = 42
