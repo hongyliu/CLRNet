@@ -18,7 +18,7 @@ def generate_uniform_prior(batch, channels, prior_elements, points, img_w, start
 
 def prior_add_y(prior: Tensor, points, img_h, batch):
     prior_y = tensor([img_h - 1 - img_h / (points - 1) * i for i in range(points)], requires_grad=True).resize(1, 1, points)
-    prior_y = prior_y.repeat(batch, 1, 1)
+    prior_y = prior_y.repeat(batch, 1, 1).to(torch.float32).cuda()
     prior = torch.hstack((prior, prior_y))
     return prior
 
@@ -28,7 +28,7 @@ def lane_roi_align(feature: Tensor, lane_prior: Tensor, num_points, sample_point
     prior = lane_prior * ratio
     sample_stride = num_points // sample_points
     sample_prior = prior[:, :, ::sample_stride]
-    batch, lanes = lane_prior.shape[0], lane_prior.shape[1] - 1
+    batch, lanes = feature.shape[0], lane_prior.shape[1] - 1
     feature_batch_list = list()
     for i in range(batch):
         feature_lane_list = list()
@@ -151,7 +151,7 @@ class ROIGather(nn.Module):
         prior_output = []
         for i, roi_gather_block in enumerate(self.roi_layers):
             prior_input = generate_prior if i == 0 else prior_output[-1]
-            prior_refined = roi_gather_block(feature_list[i], prior_input)
+            prior_refined = roi_gather_block(feature_list[i], prior_input.to(torch.float32).cuda())
             prior_output.append(prior_refined)
         return prior_output
 

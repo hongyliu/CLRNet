@@ -27,7 +27,7 @@ class Detector(nn.Module):
         fea.reverse()
         if self.training:
             out = self.heads(fea)
-            output.update(self.heads.loss(out[-1], batch['lane_prior']))
+            output.update(self.heads.loss(out[-1], batch['lane_prior'].to(torch.float32).cuda()))
         else:
             out = self.heads(fea)
             output = self.heads.get_lanes(out[-1])
