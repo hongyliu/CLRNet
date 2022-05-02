@@ -18,7 +18,9 @@ def generate_uniform_prior(batch, channels, prior_elements, points, img_w, start
 
 def prior_add_y(prior: Tensor, points, img_h, batch):
     prior_y = tensor([img_h - 1 - img_h / (points - 1) * i for i in range(points)], requires_grad=True).resize(1, 1, points)
-    prior_y = prior_y.repeat(batch, 1, 1).to(torch.float32).cuda()
+    prior_y = prior_y.repeat(batch, 1, 1)#.to(torch.float32).cuda()
+    if torch.cuda.is_available():
+        prior_y = prior_y.to(torch.float32).cuda()
     prior = torch.hstack((prior, prior_y))
     return prior
 
@@ -92,7 +94,7 @@ class ROIGatherBlock(nn.Module):
         prior = prior_add_y(prior_input[:, :, 6:], self.points, self.img_h, self.batch_size)
         roi = lane_roi_align(feature_input, prior, self.points, self.sample_points, self.feature_h,
                              self.feature_w, self.img_h)
-        x_f = torch.unsqueeze(self.resize_flatten(feature_input), 1)#.repeat(1, self.max_lanes, 1, 1)
+        x_f = self.resize_flatten(feature_input).reshape(self.batch_size, 1, self.in_channel, -1)#.repeat(1, self.max_lanes, 1, 1)
         x_p = self.conv_fc(roi.reshape(-1, self.in_channel, self.sample_points))\
             .reshape(self.batch_size, -1, 1, self.in_channel)
         w = self.softmax(torch.matmul(x_p, x_f) / math.sqrt(self.in_channel))
@@ -151,7 +153,9 @@ class ROIGather(nn.Module):
         prior_output = []
         for i, roi_gather_block in enumerate(self.roi_layers):
             prior_input = generate_prior if i == 0 else prior_output[-1]
-            prior_refined = roi_gather_block(feature_list[i], prior_input.to(torch.float32).cuda())
+            if torch.cuda.is_available():
+                prior_input = prior_input.to(torch.float32).cuda()
+            prior_refined = roi_gather_block(feature_list[i], prior_input)#.to(torch.float32).cuda())
             prior_output.append(prior_refined)
         return prior_output
 

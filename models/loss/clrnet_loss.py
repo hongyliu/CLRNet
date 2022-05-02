@@ -31,11 +31,12 @@ class CLRNet_Loss(nn.Module):
         fl_list = []
         for idx in range(len(label_targets)):
             dim0, dim1, dim2 = predict_features[idx].shape
+            normal = F.normalize(torch.cat([predict_features[idx][:, :, 2:6], label_targets[idx][..., 2:6]], dim=1))
             fl_idx = []
             sl1l_idx = []
             for i in range(dim1):
                 fl_idx.append(self.focal_loss(predict_features[idx][:, i, :2], torch.argmax(label_targets[idx][..., :2].squeeze(), keepdim=True)))
-                sl1l_idx.append(self.smooth_l1_loss(predict_features[idx][:, i, 2:6], label_targets[idx][..., 2:6].squeeze(0)))
+                sl1l_idx.append(self.smooth_l1_loss(normal[:, i, :], normal[:, -1, :]))
             fl_list.append(tensor(fl_idx, requires_grad=True).mean())
 
             ll_list.append(self.liou_loss(predict_features[idx][..., 6:], label_targets[idx][..., 6:]).mean())

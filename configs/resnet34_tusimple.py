@@ -54,7 +54,7 @@ max_lanes = 5
 optimizer = dict(type='Adam', lr=1e-3, betas=(0.9, 0.999), eps=1e-8)
 
 epochs = 70
-total_iter = (3626 // batch_size) * epochs
+total_iter = (3616 // batch_size) * epochs
 
 scheduler = dict(
     type = 'MultiStepLR',
@@ -62,7 +62,6 @@ scheduler = dict(
     gamma=0.1
 )
 
-seg_loss_weight = 1.0
 eval_ep = 2
 save_ep = 2 
 
@@ -138,6 +137,6 @@ dataset = dict(
 )
 
 
-workers = 8
-log_interval = 1000
+workers = 0
+log_interval = 30
 seed = 42
