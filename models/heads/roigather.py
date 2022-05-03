@@ -6,7 +6,9 @@ from torch import nn, Tensor, tensor
 from models.loss import CLRNet_Loss, LIoU_Loss
 from mmcv.cnn import ConvModule
 import numpy as np
+from numpy import diff
 from models.core.lane import Lane
+import torch.nn.functional as F
 
 
 def generate_uniform_prior(batch, channels, prior_elements, points, img_w, start=0):
@@ -102,6 +104,7 @@ class ROIGatherBlock(nn.Module):
         g_reshape = self.con_1x1(g.reshape(self.batch_size, -1, 1, 1))
 
         p = g_reshape.squeeze(3) + prior_input
+        p[:, :, :2] = F.softmax(p[:, :, :2], dim=2)
         # p = self.fc((g + x_p).reshape(-1, self.in_channel)).reshape(-1, self.max_lanes, self.prior_elements)
         return p
 
@@ -185,7 +188,7 @@ class ROIGather(nn.Module):
                 i = order[0].item()    # 保留scores最大的那个框box[i]
                 keep.append(i)
 
-            iou = liou(predict[order[1:], :].unsqueeze(0), predict[[i], :].unsqueeze(0))
+            iou = liou(predict[order[1:], :].unsqueeze(0), predict[[i], :].unsqueeze(0)).squeeze(0)
 
             idx = (iou <= threshold).nonzero().squeeze() # 注意此时idx为[N-1,] 而order为[N,]
             if idx.numel() == 0:
@@ -201,13 +204,22 @@ class ROIGather(nn.Module):
             idx = self.nms(predict_filter[:, 6:], predict_filter[:, 0], self.nms_threshold)
             for lane in predict_filter[idx]:
                 coord = []
-                prior_y = tensor([self.img_h - 1 - self.img_h / (self.num_points - 1) * i for i in range(self.num_points)])
+                prior_y = tensor([self.cfg.img_h - 1 - self.cfg.img_h / (self.cfg.num_points - 1) * i
+                                  for i in range(self.cfg.num_points)])
                 start_idx = torch.argmin(torch.abs(prior_y - lane[4]))
-                for i in range(start_idx.int(), start_idx.int() + lane[2].int()):
+                end_idx = start_idx.int() + lane[2].int() if start_idx.int() + lane[2].int() <= self.cfg.num_points \
+                    else self.cfg.num_points
+                for i in range(start_idx.int(), end_idx):
                     coord.append([lane[6:][i], prior_y[i]])
-                coord = np.array(coord)
+                coord = tensor(coord)
                 coord[:, 0] /= self.cfg.img_w
                 coord[:, 1] /= self.cfg.img_h
-                lanes.append(Lane(coord))
+                _, order = coord[:, 0].sort(0, descending=False)
+                coord = coord[order, :]
+                if len(coord) > 3:
+                    non_idx = torch.nonzero(tensor(diff(coord[:, 0]) == 0.0))
+                    if len(non_idx) > 0:
+                        coord[non_idx, 0] -= 1e-6
+                    lanes.append(Lane(coord))
             ret.append(lanes)
         return ret

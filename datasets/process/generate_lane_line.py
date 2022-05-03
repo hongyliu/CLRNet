@@ -110,7 +110,7 @@ class GenerateLaneLine(object):
             if len(xs_inside_image) == 0:
                 continue
             delta_y = self.img_h / self.n_strips
-            theta = [math.atan(delta_y / (xs_inside_image[i + 1] - xs_inside_image[i])) for i in range(len(xs_inside_image) - 1)]
+            theta = [math.atan(delta_y / (xs_inside_image[i + 1] - xs_inside_image[i] + 1e-5)) for i in range(len(xs_inside_image) - 1)]
             all_xs = np.hstack((xs_outside_image, xs_inside_image))
             lanes[lane_idx, 0] = 0
             lanes[lane_idx, 1] = 1

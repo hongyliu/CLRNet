@@ -8,7 +8,7 @@ class Lane:
         self.curr_iter = 0
         self.points = points
         self.invalid_value = invalid_value
-        self.function = InterpolatedUnivariateSpline(points[:, 1], points[:, 0], k=min(3, len(points) - 1))
+        self.function = InterpolatedUnivariateSpline(points[:, 0], points[:, 1])
         self.min_y = points[:, 1].min() - 0.01
         self.max_y = points[:, 1].max() + 0.01
 
