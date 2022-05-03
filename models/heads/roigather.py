@@ -206,6 +206,8 @@ class ROIGather(nn.Module):
                 coord = []
                 prior_y = tensor([self.cfg.img_h - 1 - self.cfg.img_h / (self.cfg.num_points - 1) * i
                                   for i in range(self.cfg.num_points)])
+                if torch.cuda.is_available():
+                    prior_y = prior_y.to(torch.float32).cuda()
                 start_idx = torch.argmin(torch.abs(prior_y - lane[4]))
                 end_idx = start_idx.int() + lane[2].int() if start_idx.int() + lane[2].int() <= self.cfg.num_points \
                     else self.cfg.num_points
