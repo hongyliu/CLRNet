@@ -44,5 +44,6 @@ def load_network(net, model_dir, finetune_from=None, logger=None):
             logger.info('Finetune model from: ' + finetune_from)
         load_network_specified(net, finetune_from, logger)
         return
-    pretrained_model = torch.load(model_dir, map_location=torch.device('cpu'))
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    pretrained_model = torch.load(model_dir, map_location=torch.device(device))
     print(net.load_state_dict(pretrained_model['net'], strict=False))
