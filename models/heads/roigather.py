@@ -223,5 +223,7 @@ class ROIGather(nn.Module):
                     if len(non_idx) > 0:
                         coord[non_idx, 0] -= 1e-6
                     lanes.append(Lane(coord.numpy()))
+                if len(lanes) >= self.cfg.max_lanes:
+                    break
             ret.append(lanes)
         return ret
