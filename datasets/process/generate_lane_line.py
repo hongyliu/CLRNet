@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import os
 import json
+import traceback
 import logging
 import imgaug.augmenters as iaa
 from imgaug.augmenters import Resize
@@ -117,7 +118,7 @@ class GenerateLaneLine(object):
             lanes[lane_idx, 2] = len(xs_inside_image)
             lanes[lane_idx, 3] = xs_inside_image[0]
             lanes[lane_idx, 4] = len(xs_outside_image) / self.n_strips
-            lanes[lane_idx, 5] = sum(theta) / len(theta)
+            lanes[lane_idx, 5] = sum(theta) / (len(theta) + 1e-5)
             lanes[lane_idx, 6:6 + len(all_xs)] = all_xs
 
         new_anno = {'lane_prior': lanes, 'old_anno': anno}
@@ -145,6 +146,7 @@ class GenerateLaneLine(object):
             except:
                 if (i + 1) == 30:
                     self.logger.critical('Transform annotation failed 30 times :(')
+                    self.logger.critical(traceback.format_exc(limit=5))
                     exit()
 
         sample['img'] = img / 255.

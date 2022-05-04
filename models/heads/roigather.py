@@ -200,8 +200,8 @@ class ROIGather(nn.Module):
         ret = []
         for predict in out:
             lanes = []
-            predict_filter = predict[predict[:, 0] > self.score_threshold, :]
-            idx = self.nms(predict_filter[:, 6:], predict_filter[:, 0], self.nms_threshold)
+            predict_filter = predict[predict[:, 1] > self.score_threshold, :]
+            idx = self.nms(predict_filter[:, 6:], predict_filter[:, 1], self.nms_threshold)
             for lane in predict_filter[idx]:
                 coord = []
                 prior_y = tensor([self.cfg.img_h - 1 - self.cfg.img_h / (self.cfg.num_points - 1) * i
