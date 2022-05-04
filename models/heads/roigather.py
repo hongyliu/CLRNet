@@ -222,6 +222,6 @@ class ROIGather(nn.Module):
                     non_idx = torch.nonzero(tensor(diff(coord[:, 0]) == 0.0))
                     if len(non_idx) > 0:
                         coord[non_idx, 0] -= 1e-6
-                    lanes.append(Lane(coord))
+                    lanes.append(Lane(coord.numpy()))
             ret.append(lanes)
         return ret

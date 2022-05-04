@@ -28,7 +28,7 @@ heads=dict(
     feature_channel=64,
     sample_points=36,
     resize_shape=(10, 25),
-    score_threshold=0.5,
+    score_threshold=0.4,
     nms_threshold=0.5,
     radius=15
 )
