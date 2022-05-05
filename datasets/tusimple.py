@@ -4,9 +4,9 @@ import cv2
 import os
 import json
 import torchvision
-from .base_dataset import BaseDataset
+from datasets.base_dataset import BaseDataset
 from utils.tusimple_metric import LaneEval
-from .registry import DATASETS
+from datasets.registry import DATASETS
 import logging
 import random
 
@@ -22,7 +22,7 @@ SPLIT_FILES = {
 class TuSimple(BaseDataset):
     def __init__(self, data_root, split, processes=None, cfg=None):
         super().__init__(data_root, split, processes, cfg)
-        self.anno_files = SPLIT_FILES[split] 
+        self.anno_files = SPLIT_FILES[split]
         self.load_annotations()
         self.h_samples = list(range(160, 720, 10))
 

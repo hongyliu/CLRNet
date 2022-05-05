@@ -43,7 +43,7 @@ def build_dataloader(split_cfg, cfg, is_train=True):
     samples_per_gpu = batch_size#cfg.batch_size // cfg.gpus
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size = batch_size, shuffle = shuffle,
-        num_workers = cfg.workers, pin_memory = False, drop_last = True,
+        num_workers = cfg.workers, pin_memory = False, drop_last = False,
         collate_fn=partial(collate, samples_per_gpu=samples_per_gpu),
         worker_init_fn=init_fn)
 

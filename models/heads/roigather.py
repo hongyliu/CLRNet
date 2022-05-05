@@ -93,15 +93,15 @@ class ROIGatherBlock(nn.Module):
         # self.fc.apply(self.init_weights)
 
     def forward(self, feature_input, prior_input):
-        prior = prior_add_y(prior_input[:, :, 6:], self.points, self.img_h, self.batch_size)
+        prior = prior_add_y(prior_input[:, :, 6:], self.points, self.img_h, prior_input.shape[0])
         roi = lane_roi_align(feature_input, prior, self.points, self.sample_points, self.feature_h,
                              self.feature_w, self.img_h)
-        x_f = self.resize_flatten(feature_input).reshape(self.batch_size, 1, self.in_channel, -1)#.repeat(1, self.max_lanes, 1, 1)
+        x_f = self.resize_flatten(feature_input).reshape(-1, 1, self.in_channel, self.resize_h * self.resize_w)#.repeat(1, self.max_lanes, 1, 1)
         x_p = self.conv_fc(roi.reshape(-1, self.in_channel, self.sample_points))\
-            .reshape(self.batch_size, -1, 1, self.in_channel)
+            .reshape(x_f.shape[0], -1, 1, self.in_channel)
         w = self.softmax(torch.matmul(x_p, x_f) / math.sqrt(self.in_channel))
         g = torch.matmul(w, x_f.permute(0, 1, 3, 2))
-        g_reshape = self.con_1x1(g.reshape(self.batch_size, -1, 1, 1))
+        g_reshape = self.con_1x1(g.reshape(x_f.shape[0], -1, 1, 1))
 
         p = g_reshape.squeeze(3) + prior_input
         p[:, :, :2] = F.softmax(p[:, :, :2], dim=2)
@@ -151,7 +151,7 @@ class ROIGather(nn.Module):
             self.roi_layers.append(roi_gather_block)
 
     def forward(self, feature_list):
-        generate_prior = generate_uniform_prior(self.cfg.batch_size, self.feature_channel, self.cfg.prior_elements,
+        generate_prior = generate_uniform_prior(feature_list[0].shape[0], self.feature_channel, self.cfg.prior_elements,
                                                 self.cfg.num_points, self.cfg.img_w)
         prior_output = []
         for i, roi_gather_block in enumerate(self.roi_layers):
